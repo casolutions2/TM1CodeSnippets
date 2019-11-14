@@ -1,0 +1,74 @@
+Process log cube descriptor
+
+Dimeensions
+    }Process
+    }Clients
+    Date
+    sys.arbitrarynumber
+    sys.processlogmeasure
+
+Date elements are 
+
+sys.arbitrarynumber is a simple list of numbers from 1 to ?? suggest 200 initially
+
+sys.processlogmeasure
+    RunCount                N
+    Start                   S
+    End                     S
+    Duration                C
+        EndTime             N
+        StartTime           N
+    Duration (secs)         N
+    Duration (mins)         N
+    Parameters              S
+    User                    S       // possibly dont need as we have the clients dimension incorporated
+    Message                 S
+    Lock                    S
+    Status                  S
+    IsError                 N
+    Error File              S
+    TrxCount                N
+
+
+Cube Rule:
+#=================================================
+#   Date written: 2017-11-14
+#   Author: CA Solutions (QLD) Pty Ltd
+#=================================================
+skipcheck;
+feedstrings;
+
+#=================================================
+# Exceptions to rules
+#=================================================
+
+['Start'] = S: if ( ElLev( 'System.ArbitraryNumber', !System.ArbitraryNumber ) > 0, '', continue );
+#	( ElLev( 'System.Calendar.DayOfMonth', !System.Calendar.DayOfMonth ) > 0 & !System.Calendar.DayOfMonth <> 'CurrentDay' ), '', continue );
+['End'] = S: if ( ElLev( 'System.ArbitraryNumber', !System.ArbitraryNumber ) > 0, '', continue );
+#	ElLev( 'System.Calendar.DayOfMonth', !System.Calendar.DayOfMonth ) > 0, '', continue );
+
+#=================================================
+
+['Start'] = S: TimSt( DB( 'System.ProcessLog', !System.Calendar.Year, !System.Calendar.Month, !System.Calendar.DayOfMonth, !}Processes, !System.ArbitraryNumber, 'StartTime' ), '\h:\i:\s');
+['End'] = S: TimSt( DB( 'System.ProcessLog', !System.Calendar.Year, !System.Calendar.Month, !System.Calendar.DayOfMonth, !}Processes, !System.ArbitraryNumber, 'EndTime' ), '\h:\i:\s');
+
+['Duration (secs)'] = N: if ( ['Duration'] < 0, 0, ['Duration'] * 24 * 60 * 60 );
+['Duration (mins)'] = N: if ( ['Duration'] < 0, 0, ['Duration'] * 24 * 60 );
+
+['Duration (secs)'] = C: ConsolidatedAvg( 2, 'System.ProcessLog', !System.Calendar.Year, !System.Calendar.Month, !System.Calendar.DayOfMonth, !}Processes, !System.ArbitraryNumber, 'Duration (secs)' );
+['Duration (mins)'] = C: ConsolidatedAvg( 2, 'System.ProcessLog', !System.Calendar.Year, !System.Calendar.Month, !System.Calendar.DayOfMonth, !}Processes, !System.ArbitraryNumber, 'Duration (mins)' );
+['TrxCount'] = C: ConsolidatedAvg( 0, 'System.ProcessLog', !System.Calendar.Year, !System.Calendar.Month, !System.Calendar.DayOfMonth, !}Processes, !System.ArbitraryNumber, 'TrxCount' );
+
+['Status'] = S: if ( ['EndTime'] = 0, 'DID NOT COMPLETE', stet );
+
+#=================================================
+# Feeders
+#=================================================
+feeders;
+
+['StartTime'] => ['Start'];
+['EndTime'] => ['End'];
+['Duration']=>['Duration (secs)'], ['Duration (mins)'];
+
+
+
